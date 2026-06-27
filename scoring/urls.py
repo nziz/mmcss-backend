@@ -18,6 +18,8 @@ urlpatterns = [
     path('auth/request-otp/', views.RequestOTPView.as_view(),  name='request_otp'),
     path('auth/verify-otp/',  views.VerifyOTPView.as_view(),   name='verify_otp'),
     path('auth/resend-otp/',  views.ResendOTPView.as_view(),   name='resend_otp'),
+    path('users/',               views.UserListView.as_view(),   name='user_list'),
+    path('users/<int:user_id>/', views.UserDetailView.as_view(), name='user_detail'),
 
     # ── Scoring ────────────────────────────────────────
     path('score/individual/', views.ScoreIndividualView.as_view(),  name='score_individual'),

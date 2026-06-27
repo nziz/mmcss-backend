@@ -17,14 +17,6 @@ const TIER_EXPLANATIONS = {
     very_poor: 'Very poor mobile money behaviour. Extremely low transaction activity and no savings history indicate very high credit risk.',
 };
 
-const INDICATOR_INFO = {
-    txn_frequency_score:     { label: 'Transaction Frequency', max: 25 },
-    avg_txn_value_score:     { label: 'Avg Transaction Value', max: 20 },
-    savings_score:           { label: 'Savings Consistency',   max: 20 },
-    bill_payment_score:      { label: 'Bill Payment Regularity', max: 15 },
-    network_diversity_score: { label: 'Network Diversity',     max: 10 },
-    account_age_score:       { label: 'Account Age',           max: 10 },
-};
 
 const INDICATOR_LIST = [
     { key: 'txn_frequency_score',     label: 'Transaction Frequency',   max: 25 },
@@ -57,7 +49,7 @@ export default function ScoreHistory() {
             .finally(() => setLoading(false));
     };
 
-    useEffect(() => { fetchScores(); }, []);
+    useEffect(() => { fetchScores(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Sorting ───────────────────────────────────────────────────────────────
     const sorted = [...scores].sort((a, b) => {

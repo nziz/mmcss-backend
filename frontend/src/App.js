@@ -1,3 +1,4 @@
+import UserManagement from './pages/UserManagement';
 import React, { useState, useEffect } from 'react';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -36,6 +37,7 @@ export default function App() {
     if (!loggedIn) return <Login onLogin={() => setLoggedIn(true)} />;
 
     const navItems = [
+      { key: 'users', label: '👥 User Management' },
         { key: 'dashboard',  label: '📊 Dashboard' },
         { key: 'score',      label: '👤 Score Individual' },
         { key: 'batch',      label: '👥 Batch Scoring' },
@@ -107,6 +109,7 @@ export default function App() {
 
             {/* ── MAIN CONTENT ── */}
             <div style={styles.main}>
+              {page === 'users' && <UserManagement />}
                 {page === 'dashboard' && <Dashboard />}
                 {page === 'score'     && <ScoreIndividual />}
                 {page === 'batch'     && <ScoreBatch />}

@@ -541,4 +541,82 @@ class ResendOTPView(APIView):
         otp_obj, email_sent = generate_and_send_otp(user)
         return Response({
             'message': f'New OTP sent to {user.email[:3]}***',
-        })
+        })# ─── USER MANAGEMENT ──────────────────────────────────────────────────────────
+class UserListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if not is_admin(request.user):
+            return Response({'error': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
+        users = User.objects.all().order_by('username')
+        serializer = UserSerializer(users, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        if not is_admin(request.user):
+            return Response({'error': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
+        password = request.data.get('password')
+        if not password:
+            return Response({'error': 'Password is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = User.objects.create_user(
+                username=request.data.get('username'),
+                email=request.data.get('email', ''),
+                password=password,
+                first_name=request.data.get('first_name', ''),
+                last_name=request.data.get('last_name', ''),
+                role=request.data.get('role', 'loan_officer'),
+                phone_number=request.data.get('phone_number', ''),
+                is_active=request.data.get('is_active', True),
+            )
+            institution_id = request.data.get('institution')
+            if institution_id:
+                try:
+                    user.institution = Institution.objects.get(id=institution_id)
+                    user.save()
+                except Institution.DoesNotExist:
+                    pass
+            return Response(UserSerializer(user).data, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request, user_id):
+        if not is_admin(request.user):
+            return Response({'error': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            user = User.objects.get(id=user_id)
+            user.first_name = request.data.get('first_name', user.first_name)
+            user.last_name = request.data.get('last_name', user.last_name)
+            user.email = request.data.get('email', user.email)
+            user.role = request.data.get('role', user.role)
+            user.phone_number = request.data.get('phone_number', user.phone_number)
+            user.is_active = request.data.get('is_active', user.is_active)
+            password = request.data.get('password')
+            if password:
+                user.set_password(password)
+            institution_id = request.data.get('institution')
+            if institution_id:
+                try:
+                    user.institution = Institution.objects.get(id=institution_id)
+                except Institution.DoesNotExist:
+                    pass
+            user.save()
+            return Response(UserSerializer(user).data)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+    def delete(self, request, user_id):
+        if not is_admin(request.user):
+            return Response({'error': 'Admin access required.'}, status=status.HTTP_403_FORBIDDEN)
+        try:
+            user = User.objects.get(id=user_id)
+            if user == request.user:
+                return Response({'error': 'You cannot delete your own account.'}, status=status.HTTP_400_BAD_REQUEST)
+            user.delete()
+            return Response({'message': 'User deleted.'}, status=status.HTTP_204_NO_CONTENT)
+        except User.DoesNotExist:
+            return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
