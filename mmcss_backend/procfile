@@ -1,0 +1,1 @@
+web: gunicorn mmcss_backend.wsgi --log-file -
