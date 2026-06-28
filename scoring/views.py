@@ -947,3 +947,77 @@ class ApplicantProfileUpdateView(APIView):
             'message': 'Profile updated successfully.',
             'user': UserSerializer(user).data,
         })
+        # ─── APPLICANT SELF REGISTRATION ─────────────────────────────────────────────
+class ApplicantRegisterView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        username = request.data.get('username', '').strip()
+        email = request.data.get('email', '').strip()
+        password = request.data.get('password', '').strip()
+        first_name = request.data.get('first_name', '').strip()
+        last_name = request.data.get('last_name', '').strip()
+        phone_number = request.data.get('phone_number', '').strip()
+
+        if not username:
+            return Response({'error': 'Username is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not email:
+            return Response({'error': 'Email is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not password:
+            return Response({'error': 'Password is required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(password) < 8:
+            return Response({'error': 'Password must be at least 8 characters.'}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(username=username).exists():
+            return Response({'error': 'Username already taken.'}, status=status.HTTP_400_BAD_REQUEST)
+        if User.objects.filter(email=email).exists():
+            return Response({'error': 'Email already registered.'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            user = User.objects.create_user(
+                username=username,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+                phone_number=phone_number,
+                role='applicant',
+                is_active=True,
+            )
+            return Response({
+                'message': 'Account created successfully! You can now login.',
+                'username': user.username,
+            }, status=status.HTTP_201_CREATED)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ─── APPLICANT OWN SCORES ─────────────────────────────────────────────────────
+class ApplicantOwnScoresView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'applicant':
+            return Response({'error': 'Access denied.'}, status=status.HTTP_403_FORBIDDEN)
+        scores = ScoreRecord.objects.filter(
+            applicant__phone_number=request.user.phone_number
+        ).order_by('-scored_at')
+        serializer = ScoreRecordSerializer(scores, many=True)
+        return Response(serializer.data)
+
+
+# ─── APPLICANT OWN PROFILE UPDATE ────────────────────────────────────────────
+class ApplicantProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def patch(self, request):
+        user = request.user
+        user.first_name = request.data.get('first_name', user.first_name)
+        user.last_name = request.data.get('last_name', user.last_name)
+        user.phone_number = request.data.get('phone_number', user.phone_number)
+        new_password = request.data.get('password', '')
+        if new_password:
+            if len(new_password) < 8:
+                return Response({'error': 'Password must be at least 8 characters.'}, status=status.HTTP_400_BAD_REQUEST)
+            user.set_password(new_password)
+        user.save()
+        return Response(UserSerializer(user).data)

@@ -14,6 +14,7 @@ class User(AbstractUser):
     ('auditor', 'Auditor/Viewer'),
     ('branch_manager', 'Branch Manager'),
     ('applicant', 'Loan Applicant'),
+    ('applicant', 'Applicant'),
 ]
 
     role = models.CharField(

@@ -10,6 +10,9 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from . import views
 
 urlpatterns = [
+    path('auth/register/',          views.ApplicantRegisterView.as_view(),   name='register'),
+    path('applicant/my-scores/',    views.ApplicantOwnScoresView.as_view(),  name='my_scores'),
+    path('applicant/my-profile/',   views.ApplicantProfileView.as_view(),    name='my_profile'),
 
     # ── Authentication ─────────────────────────────────
     path('auth/login/',   TokenObtainPairView.as_view(),  name='login'),

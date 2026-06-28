@@ -56,3 +56,13 @@ export const getInstitutions = () =>
     API.get('/institutions/');
 
 export default API;
+// Applicant self registration
+export const registerApplicant = (data) =>
+    API.post('/auth/register/', data);
+
+// Applicant own data
+export const getMyScores = () =>
+    API.get('/applicant/my-scores/');
+
+export const updateMyProfile = (data) =>
+    API.patch('/applicant/my-profile/', data);
