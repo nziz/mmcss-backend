@@ -10,6 +10,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from . import views
 
 urlpatterns = [
+
     # ── Authentication ─────────────────────────────────
     path('auth/login/',   TokenObtainPairView.as_view(),  name='login'),
     path('auth/refresh/', TokenRefreshView.as_view(),     name='token_refresh'),
@@ -20,6 +21,14 @@ urlpatterns = [
     path('auth/resend-otp/',  views.ResendOTPView.as_view(),   name='resend_otp'),
     path('users/',               views.UserListView.as_view(),   name='user_list'),
     path('users/<int:user_id>/', views.UserDetailView.as_view(), name='user_detail'),
+    # ── Applicant Registration ──────────────────────────
+    path('applicant/register/',         views.ApplicantRegisterView.as_view(),        name='applicant_register'),
+    path('applicant/verify/',           views.VerifyRegistrationOTPView.as_view(),    name='applicant_verify'),
+
+    # ── Applicant Portal ────────────────────────────────
+    path('applicant/portal/',           views.ApplicantPortalView.as_view(),          name='applicant_portal'),
+    path('applicant/upload/',           views.ApplicantUploadView.as_view(),          name='applicant_upload'),
+    path('applicant/profile/',          views.ApplicantProfileUpdateView.as_view(),   name='applicant_profile'),
 
     # ── Scoring ────────────────────────────────────────
     path('score/individual/', views.ScoreIndividualView.as_view(),  name='score_individual'),

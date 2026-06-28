@@ -9,11 +9,12 @@ class User(AbstractUser):
     Adds role-based access control for the four system roles.
     """
     ROLE_CHOICES = [
-        ('admin', 'Administrator'),
-        ('loan_officer', 'Loan Officer'),
-        ('auditor', 'Auditor/Viewer'),
-        ('branch_manager', 'Branch Manager'),
-    ]
+    ('admin', 'Administrator'),
+    ('loan_officer', 'Loan Officer'),
+    ('auditor', 'Auditor/Viewer'),
+    ('branch_manager', 'Branch Manager'),
+    ('applicant', 'Loan Applicant'),
+]
 
     role = models.CharField(
         max_length=20,

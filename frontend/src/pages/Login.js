@@ -35,31 +35,18 @@ export default function Login({ onLogin }) {
                     {error && <div style={styles.error}>{error}</div>}
                     <div style={styles.field}>
                         <label style={styles.label}>Username</label>
-                        <input
-                            style={styles.input}
-                            type="text"
-                            value={username}
+                        <input style={styles.input} type="text" value={username}
                             onChange={e => setUsername(e.target.value)}
-                            placeholder="Enter username"
-                            required
-                        />
+                            placeholder="Enter username" required />
                     </div>
                     <div style={styles.field}>
                         <label style={styles.label}>Password</label>
-                        <input
-                            style={styles.input}
-                            type="password"
-                            value={password}
+                        <input style={styles.input} type="password" value={password}
                             onChange={e => setPassword(e.target.value)}
-                            placeholder="Enter password"
-                            required
-                        />
+                            placeholder="Enter password" required />
                     </div>
-                    <button
-                        style={loading ? styles.buttonDisabled : styles.button}
-                        type="submit"
-                        disabled={loading}
-                    >
+                    <button style={loading ? styles.buttonDisabled : styles.button}
+                        type="submit" disabled={loading}>
                         {loading ? 'Signing in...' : 'Sign In'}
                     </button>
                 </form>
@@ -69,89 +56,17 @@ export default function Login({ onLogin }) {
 }
 
 const styles = {
-    container: {
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #1a237e 0%, #0d47a1 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    card: {
-        background: '#fff',
-        borderRadius: '12px',
-        padding: '40px',
-        width: '100%',
-        maxWidth: '420px',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-    },
-    header: {
-        textAlign: 'center',
-        marginBottom: '32px',
-    },
-    title: {
-        fontSize: '36px',
-        fontWeight: '800',
-        color: '#1a237e',
-        margin: '0 0 8px 0',
-    },
-    subtitle: {
-        fontSize: '14px',
-        color: '#555',
-        margin: '0 0 4px 0',
-    },
-    university: {
-        fontSize: '12px',
-        color: '#888',
-        margin: '0',
-    },
-    form: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '20px',
-    },
-    field: {
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '6px',
-    },
-    label: {
-        fontSize: '13px',
-        fontWeight: '600',
-        color: '#333',
-    },
-    input: {
-        padding: '12px 16px',
-        borderRadius: '8px',
-        border: '1px solid #ddd',
-        fontSize: '14px',
-        outline: 'none',
-    },
-    button: {
-        padding: '14px',
-        background: '#1a237e',
-        color: '#fff',
-        border: 'none',
-        borderRadius: '8px',
-        fontSize: '15px',
-        fontWeight: '600',
-        cursor: 'pointer',
-    },
-    buttonDisabled: {
-        padding: '14px',
-        background: '#9e9e9e',
-        color: '#fff',
-        border: 'none',
-        borderRadius: '8px',
-        fontSize: '15px',
-        fontWeight: '600',
-        cursor: 'not-allowed',
-    },
-    error: {
-        background: '#ffebee',
-        color: '#c62828',
-        padding: '12px',
-        borderRadius: '8px',
-        fontSize: '13px',
-        textAlign: 'center',
-    },
+    container: { minHeight: '100vh', background: 'linear-gradient(135deg, #1a237e 0%, #0d47a1 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+    card: { background: '#fff', borderRadius: '12px', padding: '40px', width: '100%', maxWidth: '420px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' },
+    header: { textAlign: 'center', marginBottom: '32px' },
+    title: { fontSize: '36px', fontWeight: '800', color: '#1a237e', margin: '0 0 8px 0' },
+    subtitle: { fontSize: '14px', color: '#555', margin: '0 0 4px 0' },
+    university: { fontSize: '12px', color: '#888', margin: '0' },
+    form: { display: 'flex', flexDirection: 'column', gap: '20px' },
+    field: { display: 'flex', flexDirection: 'column', gap: '6px' },
+    label: { fontSize: '13px', fontWeight: '600', color: '#333' },
+    input: { padding: '12px 16px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '14px', outline: 'none' },
+    button: { padding: '14px', background: '#1a237e', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: 'pointer' },
+    buttonDisabled: { padding: '14px', background: '#9e9e9e', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '15px', fontWeight: '600', cursor: 'not-allowed' },
+    error: { background: '#ffebee', color: '#c62828', padding: '12px', borderRadius: '8px', fontSize: '13px', textAlign: 'center' },
 };

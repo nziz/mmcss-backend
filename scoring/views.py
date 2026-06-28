@@ -620,3 +620,330 @@ class UserDetailView(APIView):
             return Response({'message': 'User deleted.'}, status=status.HTTP_204_NO_CONTENT)
         except User.DoesNotExist:
             return Response({'error': 'User not found.'}, status=status.HTTP_404_NOT_FOUND)
+            # ─── APPLICANT SELF-REGISTRATION ─────────────────────────────────────────────
+class ApplicantRegisterView(APIView):
+    """
+    Public endpoint — applicants can self-register.
+    Creates both a User account and an Applicant profile.
+    Sends OTP to verify email before account is activated.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        data = request.data
+
+        # Required fields validation
+        required = ['username', 'password', 'email', 'full_name', 'phone_number', 'national_id']
+        missing = [f for f in required if not data.get(f, '').strip()]
+        if missing:
+            return Response(
+                {'error': f'Missing required fields: {", ".join(missing)}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check username not taken
+        if User.objects.filter(username=data['username']).exists():
+            return Response(
+                {'error': 'Username already taken. Please choose another.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check email not taken
+        if User.objects.filter(email=data['email']).exists():
+            return Response(
+                {'error': 'Email already registered.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Check national ID not already registered
+        if Applicant.objects.filter(national_id=data['national_id']).exists():
+            return Response(
+                {'error': 'National ID already registered in the system.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get institution if provided
+        institution = None
+        institution_id = data.get('institution_id')
+        if institution_id:
+            try:
+                institution = Institution.objects.get(id=institution_id)
+            except Institution.DoesNotExist:
+                pass
+
+        # Parse full name into first/last
+        name_parts = data['full_name'].strip().split(' ', 1)
+        first_name = name_parts[0]
+        last_name = name_parts[1] if len(name_parts) > 1 else ''
+
+        # Create User account
+        user = User.objects.create_user(
+            username=data['username'],
+            password=data['password'],
+            email=data['email'],
+            first_name=first_name,
+            last_name=last_name,
+            role='applicant',
+            phone_number=data.get('phone_number', ''),
+            institution=institution,
+            is_active=False,  # Inactive until OTP verified
+            is_first_login=True,
+        )
+
+        # Create Applicant profile linked to user
+        applicant_ref = f"APL-{data['national_id'][-6:]}-{user.id}"
+        applicant = Applicant.objects.create(
+            applicant_ref=applicant_ref,
+            full_name=data['full_name'],
+            phone_number=data['phone_number'],
+            gender=data.get('gender', ''),
+            district=data.get('district', ''),
+            mobile_operator=data.get('mobile_operator', 'mtn'),
+            national_id=data['national_id'],
+            institution=institution,
+            created_by=user,
+        )
+
+        # Send OTP for email verification
+        otp_obj, email_sent = generate_and_send_otp(user)
+
+        return Response({
+            'message': 'Registration successful! Check your email for verification code.',
+            'username': user.username,
+            'email_sent': email_sent,
+            'requires_verification': True,
+        }, status=status.HTTP_201_CREATED)
+
+
+class VerifyRegistrationOTPView(APIView):
+    """
+    Verifies OTP for new applicant registration.
+    Activates account on success.
+    """
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        username = request.data.get('username', '').strip()
+        otp_code = request.data.get('otp_code', '').strip()
+
+        if not username or not otp_code:
+            return Response(
+                {'error': 'Username and OTP code required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            user = User.objects.get(username=username)
+        except User.DoesNotExist:
+            return Response(
+                {'error': 'User not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        success, message = verify_otp(user, otp_code)
+
+        if not success:
+            return Response(
+                {'error': message},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Activate account
+        user.is_active = True
+        user.is_first_login = False
+        user.save()
+
+        # Issue JWT token
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(user)
+
+        return Response({
+            'message': 'Account verified successfully! Welcome to MMCSS.',
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+            'user': UserSerializer(user).data,
+        })
+
+
+# ─── APPLICANT PORTAL VIEWS ───────────────────────────────────────────────────
+class ApplicantPortalView(APIView):
+    """
+    Applicant's own dashboard — sees ONLY their data.
+    Protected from seeing other applicants' data.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        if request.user.role != 'applicant':
+            return Response(
+                {'error': 'This endpoint is for applicants only.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        try:
+            # Get applicant profile linked to this user
+            applicant = Applicant.objects.get(
+                national_id__isnull=False,
+                created_by=request.user
+            )
+        except Applicant.DoesNotExist:
+            return Response(
+                {'error': 'Applicant profile not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Get ONLY this applicant's scores
+        scores = ScoreRecord.objects.filter(
+            applicant=applicant
+        ).order_by('-scored_at')
+
+        # Statistics
+        total_scores = scores.count()
+        latest_score = scores.first()
+        avg_csi = scores.aggregate(avg=Avg('csi_total'))['avg'] or 0
+
+        return Response({
+            'applicant': ApplicantSerializer(applicant).data,
+            'score_history': ScoreRecordSerializer(scores, many=True).data,
+            'statistics': {
+                'total_scorings': total_scores,
+                'average_csi': round(avg_csi, 1),
+                'latest_csi': latest_score.csi_total if latest_score else None,
+                'latest_tier': latest_score.risk_tier if latest_score else None,
+                'latest_recommendation': latest_score.recommendation if latest_score else None,
+            }
+        })
+
+
+class ApplicantUploadView(APIView):
+    """
+    Applicant uploads their own transaction file
+    to request a credit score computation.
+    """
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser]
+
+    def post(self, request):
+        if request.user.role != 'applicant':
+            return Response(
+                {'error': 'This endpoint is for applicants only.'},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        transaction_file = request.FILES.get('transaction_file')
+        account_age = int(request.data.get('account_age_months', 0))
+
+        if not transaction_file:
+            return Response(
+                {'error': 'Transaction file is required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Get applicant profile
+        try:
+            applicant = Applicant.objects.get(created_by=request.user)
+        except Applicant.DoesNotExist:
+            return Response(
+                {'error': 'Applicant profile not found.'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        suffix = '.json' if transaction_file.name.endswith('.json') else '.csv'
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            for chunk in transaction_file.chunks():
+                tmp.write(chunk)
+            tmp_path = tmp.name
+
+        try:
+            indicators = extract_indicators(tmp_path, account_age)
+            engine = CreditScoringEngine()
+            result = engine.compute_score(indicators)
+
+            score = ScoreRecord.objects.create(
+                applicant=applicant,
+                scored_by=request.user,
+                txn_frequency_score=result.txn_frequency_score,
+                avg_txn_value_score=result.avg_txn_value_score,
+                savings_score=result.savings_score,
+                bill_payment_score=result.bill_payment_score,
+                network_diversity_score=result.network_diversity_score,
+                account_age_score=result.account_age_score,
+                csi_total=result.csi_total,
+                risk_tier=result.risk_tier,
+                recommendation=result.recommendation,
+                scoring_mode='individual',
+            )
+
+            return Response({
+                'message': 'Your credit score has been computed successfully!',
+                'score': ScoreRecordSerializer(score).data,
+            }, status=status.HTTP_201_CREATED)
+
+        except DataIngestionError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        finally:
+            os.unlink(tmp_path)
+
+
+class ApplicantProfileUpdateView(APIView):
+    """
+    Applicant can update their own profile and credentials.
+    Cannot see or modify other applicants' data.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """Get own profile."""
+        if request.user.role != 'applicant':
+            return Response({'error': 'Applicants only.'}, status=status.HTTP_403_FORBIDDEN)
+        return Response(UserSerializer(request.user).data)
+
+    def put(self, request):
+        """Update own profile."""
+        if request.user.role != 'applicant':
+            return Response({'error': 'Applicants only.'}, status=status.HTTP_403_FORBIDDEN)
+
+        user = request.user
+        data = request.data
+
+        # Update allowed fields only
+        if data.get('email'):
+            if User.objects.filter(email=data['email']).exclude(id=user.id).exists():
+                return Response(
+                    {'error': 'Email already in use.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            user.email = data['email']
+
+        if data.get('phone_number'):
+            user.phone_number = data['phone_number']
+
+        if data.get('first_name'):
+            user.first_name = data['first_name']
+
+        if data.get('last_name'):
+            user.last_name = data['last_name']
+
+        # Password change
+        if data.get('new_password'):
+            old_password = data.get('old_password', '')
+            if not user.check_password(old_password):
+                return Response(
+                    {'error': 'Current password is incorrect.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            if len(data['new_password']) < 8:
+                return Response(
+                    {'error': 'New password must be at least 8 characters.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            user.set_password(data['new_password'])
+
+        user.save()
+        return Response({
+            'message': 'Profile updated successfully.',
+            'user': UserSerializer(user).data,
+        })
